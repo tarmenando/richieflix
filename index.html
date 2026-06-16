@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Richieflix - Movie Player</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="logo">RICHIEFLIX</div>
+        <div class="search-container">
+            <div class="search-box">
+                <span class="search-icon">&#128269;</span>
+                <input type="text" id="search-input" placeholder="Titles, actors..." oninput="handleSearch()">
+                <span id="clear-search" class="clear-icon hidden" onclick="clearSearch()">&times;</span>
+            </div>
+        </div>
+    </header>
+
+    <main id="app">
+        <!-- Loading Spinner -->
+        <div id="loader" class="loader-container hidden">
+            <div class="spinner"></div>
+            <p>Loading movies...</p>
+        </div>
+
+        <!-- Hero Section -->
+        <section id="hero" class="hero">
+            <div class="hero-content">
+                <h1 id="hero-title">Movie Title</h1>
+                <p id="hero-desc">Year: 2026</p>
+                <div class="hero-btns">
+                    <button class="play-btn" onclick="playHero()">Play</button>
+                    <button class="info-btn">More Info</button>
+                </div>
+            </div>
+            <div class="hero-overlay"></div>
+        </section>
+
+        <!-- Genre Rows Container -->
+        <div id="genres-container"></div>
+    </main>
+
+    <!-- Video Player Overlay -->
+    <div id="player-overlay" class="player-overlay hidden">
+        <button class="close-btn" onclick="closePlayer()">&times;</button>
+        <button id="external-player-btn" class="external-btn hidden" onclick="showExternalMenu()">&#9881; Player Options</button>
+        
+        <!-- External Player Menu Popup -->
+        <div id="external-menu" class="external-menu hidden">
+            <h3>Audio Issues? (No Sound)</h3>
+            <p>Try opening in an external player that supports surround sound formats (MKV/AC3/DTS).</p>
+            <button onclick="launchExternal('vlc')">Open in VLC Player</button>
+            <button onclick="launchExternal('mx')">Open in MX Player (Android)</button>
+            <button onclick="copyVideoUrl()">Copy Video Link</button>
+            <hr>
+            <button class="secondary-btn" onclick="hideExternalMenu()">Continue in Browser</button>
+        </div>
+
+        <video id="video-player" controls preload="metadata">
+            <track id="player-subtitle" label="English" kind="subtitles" srclang="en" default>
+            Your browser does not support the video tag.
+        </video>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
