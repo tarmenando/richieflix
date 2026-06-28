@@ -59,64 +59,30 @@ export async function onRequest(context) {
         return new Response('Missing path parameter', { status: 400 });
     }
 
-    const rangeHeader = context.request.headers.get('Range');
-    
-    // Determine MIME type based on extension
-    const ext = videoPath.split('.').pop().toLowerCase();
-    let mimeType = 'video/mp4';
-    if (ext === 'mkv') mimeType = 'video/x-matroska';
-    else if (ext === 'webm') mimeType = 'video/webm';
-    else if (ext === 'avi') mimeType = 'video/x-msvideo';
-    else if (ext === 'ts') mimeType = 'video/mp2t';
-
     try {
-        let cdnUrl = await resolveCdnUrl(videoPath);
-
-        const fetchHdrs = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-            'Referer':    'https://p.111477.xyz/',
-            'Accept':     '*/*',
-            'Accept-Language': 'id-ID,id;q=0.9,en;q=0.8',
-        };
-        if (rangeHeader) fetchHdrs['Range'] = rangeHeader;
-
-        let upstream = await fetch(cdnUrl, { headers: fetchHdrs });
-
-        // Retry once if expired CDN URL
-        if (upstream.status >= 400) {
-            cdnUrlCache.delete(videoPath);
-            cdnUrl = await resolveCdnUrl(videoPath);
-            upstream = await fetch(cdnUrl, { headers: fetchHdrs });
-        }
-
-        if (!upstream.ok && upstream.status !== 206) {
-            return new Response(`CDN error: ${upstream.status}`, { status: upstream.status });
-        }
-
-        // Forward headers to browser
-        const responseHeaders = new Headers({
-            'Access-Control-Allow-Origin': '*',
-            'Accept-Ranges': 'bytes',
-            'Content-Type': mimeType
-        });
-
-        const headersToForward = ['content-length', 'content-range'];
-        headersToForward.forEach(h => {
-            const val = upstream.headers.get(h);
-            if (val) responseHeaders.set(h, val);
-        });
-
-        // Cloudflare Workers streams the response body automatically
-        return new Response(upstream.body, {
-            status: upstream.status,
-            headers: responseHeaders
+        // Resolve CDN URL (server-side, cached 4 menit)
+        const cdnUrl = await resolveCdnUrl(videoPath);
+        
+        // Kembalikan redirect 302 langsung ke CDN
+        // Browser akan mem-follow redirect dan mengunduh langsung dari CDN ke IP user (bebas 429 Cloudflare Workers)
+        return new Response(null, {
+            status: 302,
+            headers: {
+                'Location': cdnUrl,
+                'Access-Control-Allow-Origin': '*',
+                'Cache-Control': 'no-store'
+            }
         });
 
     } catch (err) {
-        return new Response(err.message, {
-            status: 500,
+        console.error('[stream] Error:', err.message);
+        // Fallback ke source URL asli jika terjadi kegagalan
+        return new Response(null, {
+            status: 302,
             headers: {
-                'Access-Control-Allow-Origin': '*'
+                'Location': `https://a.111477.xyz${videoPath}`,
+                'Access-Control-Allow-Origin': '*',
+                'Cache-Control': 'no-store'
             }
         });
     }

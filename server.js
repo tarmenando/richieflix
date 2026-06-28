@@ -263,88 +263,26 @@ async function resolveCdnUrl(videoPath) {
     return cdnUrl;
 }
 
-// API: /api/stream?path=/movies/X/file.mkv
-// Proxy video bytes dari CDN ke browser — support HTTP Range requests untuk seeking
 app.get('/api/stream', async (req, res) => {
     const videoPath = req.query.path;
     if (!videoPath) return res.status(400).send('Missing path parameter');
 
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Accept-Ranges', 'bytes');
-
-    const rangeHeader = req.headers['range'];
+    res.set({
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-store'
+    });
 
     try {
         // Resolve CDN URL (server-side, cached 4 menit)
-        let cdnUrl;
-        try {
-            cdnUrl = await resolveCdnUrl(videoPath);
-        } catch (resolveErr) {
-            console.error('[stream] Resolve failed:', resolveErr.message);
-            return res.status(502).send('Failed to resolve video source: ' + resolveErr.message);
-        }
-
-        const fetchHdrs = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-            'Referer':    'https://p.111477.xyz/',
-            'Accept':     '*/*',
-            'Accept-Language': 'id-ID,id;q=0.9,en;q=0.8',
-        };
-        if (rangeHeader) fetchHdrs['Range'] = rangeHeader;
-
-        let upstream = await fetch(cdnUrl, { headers: fetchHdrs, signal: AbortSignal.timeout(20000) });
-
-        // If CDN URL expired (4xx/5xx), resolve fresh and retry once
-        if (upstream.status >= 400) {
-            console.warn(`[stream] CDN returned ${upstream.status}, resolving fresh...`);
-            cdnUrlCache.delete(videoPath); // clear stale cache
-            cdnUrl = await resolveCdnUrl(videoPath);
-            upstream = await fetch(cdnUrl, { headers: fetchHdrs, signal: AbortSignal.timeout(20000) });
-        }
-
-        if (!upstream.ok && upstream.status !== 206) {
-            return res.status(upstream.status).send(`CDN error: ${upstream.status}`);
-        }
-
-        // Forward headers, but override content-type with correct mime-type based on extension
-        const ext = path.extname(videoPath).toLowerCase();
-        let mimeType = 'video/mp4'; // default fallback
-        if (ext === '.mkv') mimeType = 'video/x-matroska';
-        else if (ext === '.mp4') mimeType = 'video/mp4';
-        else if (ext === '.webm') mimeType = 'video/webm';
-        else if (ext === '.avi') mimeType = 'video/x-msvideo';
-        else if (ext === '.ts') mimeType = 'video/mp2t';
+        const cdnUrl = await resolveCdnUrl(videoPath);
         
-        res.setHeader('Content-Type', mimeType);
-
-        ['content-length', 'content-range', 'accept-ranges'].forEach(h => {
-            const v = upstream.headers.get(h);
-            if (v) res.setHeader(h, v);
-        });
-
-        res.status(upstream.status);
-
-        // Stream bytes using Node.js pipeline-friendly approach
-        const reader = upstream.body.getReader();
-        req.on('close', () => reader.cancel()); // abort if client disconnects
-
-        const pump = async () => {
-            try {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) { res.end(); break; }
-                    const ok = res.write(value);
-                    if (!ok) await new Promise(r => res.once('drain', r));
-                }
-            } catch (e) {
-                if (!res.headersSent) res.status(500).end();
-            }
-        };
-        pump();
+        console.log(`[stream] Redirecting user directly to CDN: ${cdnUrl.slice(0, 80)}...`);
+        res.redirect(302, cdnUrl);
 
     } catch (err) {
         console.error('[stream] Error:', err.message);
-        if (!res.headersSent) res.status(500).send(err.message);
+        // Fallback ke source URL asli jika terjadi kegagalan
+        res.redirect(302, `https://a.111477.xyz${videoPath}`);
     }
 });
 
