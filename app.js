@@ -438,15 +438,19 @@ function playVideo(movie) {
     // agar tidak terjadi loop: onerror → closePlayer → src='' → onerror → ...
     videoEl.onerror = () => {
         const err = videoEl.error;
-        // ← Null-kan SEBELUM closePlayer agar tidak loop
         videoEl.onerror = null;
         console.error('[video] Media error code:', err ? err.code : 'unknown');
         closePlayer();
-        showPlayerError(
-            `Gagal memuat video (kode ${err ? err.code : '?'}).\n` +
-            `Kemungkinan server CDN sedang membatasi request. Coba beberapa detik lagi.`,
-            movie
-        );
+
+        const isMkv = movie.fullName && movie.fullName.toLowerCase().endsWith('.mkv');
+        let msg = `Gagal memuat video (kode ${err ? err.code : '?'}).\n`;
+        if (err && err.code === 4 && isMkv) {
+            msg += `Format file (.mkv) tidak didukung secara langsung oleh browser Anda.\n\nSilakan gunakan tombol opsi di bawah untuk memutar di VLC Player atau menyalin link streaming.`;
+        } else {
+            msg += `Kemungkinan server CDN membatasi request (429) atau format audio/video tidak didukung.`;
+        }
+
+        showPlayerError(msg, movie);
     };
 
     extBtn.classList.remove('hidden');
@@ -455,38 +459,63 @@ function playVideo(movie) {
     document.body.style.overflow = 'hidden';
 }
 
-// Show error modal with retry option
+// Show error modal with retry & external player options
 function showPlayerError(msg, movie = null) {
-    // Remove existing error modal if any
     const existing = document.getElementById('player-error-modal');
     if (existing) existing.remove();
 
     const modal = document.createElement('div');
     modal.id = 'player-error-modal';
     modal.style.cssText = `
-        position:fixed; inset:0; background:rgba(0,0,0,0.82); z-index:4000;
+        position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:4000;
         display:flex; align-items:center; justify-content:center;
+        font-family: 'Inter', sans-serif;
     `;
 
-    const retryBtn = movie ? `
-        <button onclick="document.getElementById('player-error-modal').remove(); openMovie(window._retryMovie);"
-            style="background:#e50914;color:#fff;border:none;padding:12px 28px;border-radius:8px;
-                   font-size:0.95rem;font-weight:700;cursor:pointer;margin-right:10px;">
-            🔄 Coba Lagi
-        </button>
-    ` : '';
+    // Action buttons inside modal
+    let actionButtons = '';
+    if (movie) {
+        actionButtons += `
+            <button onclick="document.getElementById('player-error-modal').remove(); openMovie(window._retryMovie);"
+                style="background:#e50914;color:#fff;border:none;padding:12px 20px;border-radius:8px;
+                       font-size:0.9rem;font-weight:700;cursor:pointer;margin:5px;">
+                🔄 Coba Lagi
+            </button>
+        `;
+        
+        // VLC Deep link option
+        const isAndroid = /Android/i.test(navigator.userAgent);
+        const videoUrl = `${API_BASE}/api/stream?path=${encodeURIComponent(movie.url)}`; 
+        const cleanUrl = videoUrl.replace(/^https?:\/\//i, '');
+        const vlcUrl = isAndroid 
+            ? `intent://${cleanUrl}#Intent;package=org.videolan.vlc;type=video/*;scheme=https;end;`
+            : `vlc://${videoUrl}`;
+
+        actionButtons += `
+            <button onclick="window.location.href='${vlcUrl}'; document.getElementById('player-error-modal').remove();"
+                style="background:#ff6b35;color:#fff;border:none;padding:12px 20px;border-radius:8px;
+                       font-size:0.9rem;font-weight:700;cursor:pointer;margin:5px;display:inline-flex;align-items:center;gap:6px;">
+                🧡 Buka di VLC
+            </button>
+            <button onclick="navigator.clipboard.writeText('${videoUrl}'); alert('Link video disalin!');"
+                style="background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.15);
+                       padding:12px 20px;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;margin:5px;">
+                📋 Salin Link
+            </button>
+        `;
+    }
 
     modal.innerHTML = `
         <div style="background:#1a1a1a;border:1px solid rgba(255,255,255,0.1);border-radius:16px;
-                    padding:36px 40px;max-width:420px;text-align:center;">
-            <div style="font-size:2.5rem;margin-bottom:16px">⚠️</div>
-            <h3 style="margin:0 0 12px;font-size:1.15rem;color:#fff">Gagal Memutar Video</h3>
-            <p style="font-size:0.87rem;color:#999;line-height:1.6;margin-bottom:24px;white-space:pre-line">${escHtml(msg)}</p>
-            <div>
-                ${retryBtn}
+                    padding:36px 40px;max-width:460px;width:90%;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.5);">
+            <div style="font-size:3rem;margin-bottom:16px">📺</div>
+            <h3 style="margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:700;">Gagal Memutar Video</h3>
+            <p style="font-size:0.87rem;color:#aaa;line-height:1.6;margin-bottom:28px;white-space:pre-line">${escHtml(msg)}</p>
+            <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:4px;">
+                ${actionButtons}
                 <button onclick="document.getElementById('player-error-modal').remove();"
-                    style="background:rgba(255,255,255,0.1);color:#ccc;border:1px solid rgba(255,255,255,0.15);
-                           padding:12px 24px;border-radius:8px;font-size:0.9rem;cursor:pointer;">
+                    style="background:rgba(255,255,255,0.05);color:#999;border:none;
+                           padding:12px 20px;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;margin:5px;">
                     Tutup
                 </button>
             </div>

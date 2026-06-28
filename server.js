@@ -306,8 +306,18 @@ app.get('/api/stream', async (req, res) => {
             return res.status(upstream.status).send(`CDN error: ${upstream.status}`);
         }
 
-        // Forward headers
-        ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach(h => {
+        // Forward headers, but override content-type with correct mime-type based on extension
+        const ext = path.extname(videoPath).toLowerCase();
+        let mimeType = 'video/mp4'; // default fallback
+        if (ext === '.mkv') mimeType = 'video/x-matroska';
+        else if (ext === '.mp4') mimeType = 'video/mp4';
+        else if (ext === '.webm') mimeType = 'video/webm';
+        else if (ext === '.avi') mimeType = 'video/x-msvideo';
+        else if (ext === '.ts') mimeType = 'video/mp2t';
+        
+        res.setHeader('Content-Type', mimeType);
+
+        ['content-length', 'content-range', 'accept-ranges'].forEach(h => {
             const v = upstream.headers.get(h);
             if (v) res.setHeader(h, v);
         });
