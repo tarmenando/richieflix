@@ -395,13 +395,13 @@ async function openMovie(movie) {
             return;
         }
 
-        // 2. Gunakan stream proxy server — server yang ikuti redirect chain + kirim Referer yg benar
-        //    Ini mencegah 429: browser tidak pernah kontak p.111477.xyz/CDN langsung
-        //    Format: /api/stream?path=/movies/X/file.mkv
-        const videoUrl = `${API_BASE}/api/stream?path=${encodeURIComponent(videoFile.url)}`;
+        // 2. Gunakan URL direct ke sumber asli
+        //    Ini memastikan film-film lain terputar dengan lancar langsung di browser,
+        //    sementara error 429/MKV akan ditangani otomatis oleh modal error dengan tombol VLC & Salin Link.
+        const videoUrl = `${EXTERNAL_DOMAIN}${videoFile.url}`;
         const subUrl   = subFile ? `${EXTERNAL_DOMAIN}${subFile.url}` : null;
 
-        console.log(`[player] Stream via proxy: ${videoFile.url}`);
+        console.log(`[player] Direct stream: ${videoUrl}`);
         playVideo({ ...movie, videoUrl, subUrl });
 
     } catch (err) {
@@ -485,7 +485,7 @@ function showPlayerError(msg, movie = null) {
         
         // VLC Deep link option
         const isAndroid = /Android/i.test(navigator.userAgent);
-        const videoUrl = `${API_BASE}/api/stream?path=${encodeURIComponent(movie.url)}`; 
+        const videoUrl = movie.videoUrl || '';
         const cleanUrl = videoUrl.replace(/^https?:\/\//i, '');
         const vlcUrl = isAndroid 
             ? `intent://${cleanUrl}#Intent;package=org.videolan.vlc;type=video/*;scheme=https;end;`
