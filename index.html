@@ -1,69 +1,157 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Richieflix - Movie Player</title>
+    <title>RichieFlix — Nonton Film Online</title>
+    <meta name="description" content="Tonton film terbaru dan terlengkap secara online di RichieFlix. Koleksi film dari berbagai genre tersedia gratis.">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header>
-        <div class="logo">RICHIEFLIX</div>
-        <div class="search-container">
-            <div class="search-box">
-                <span class="search-icon">&#128269;</span>
-                <input type="text" id="search-input" placeholder="Titles, actors..." oninput="handleSearch()">
-                <span id="clear-search" class="clear-icon hidden" onclick="clearSearch()">&times;</span>
+
+    <!-- ===== NAVBAR ===== -->
+    <header id="navbar">
+        <div class="nav-left">
+            <div class="logo" onclick="scrollToTop()">RICHIEFLIX</div>
+            <nav class="nav-links">
+                <a href="#" class="nav-link active" onclick="showHome(event)">Beranda</a>
+                <a href="#" class="nav-link" onclick="showGenreFilter(event, 'Action')">Aksi</a>
+                <a href="#" class="nav-link" onclick="showGenreFilter(event, 'Comedy')">Komedi</a>
+                <a href="#" class="nav-link" onclick="showGenreFilter(event, 'Drama')">Drama</a>
+                <a href="#" class="nav-link" onclick="showGenreFilter(event, 'Horror')">Horor</a>
+                <a href="#" class="nav-link" onclick="showGenreFilter(event, 'Animation')">Animasi</a>
+            </nav>
+        </div>
+        <div class="nav-right">
+            <!-- Search Bar -->
+            <div class="search-wrapper" id="search-wrapper">
+                <div class="search-box" id="search-box">
+                    <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                    </svg>
+                    <input type="text" id="search-input" placeholder="Cari judul, genre..." autocomplete="off" oninput="handleSearch()" onfocus="onSearchFocus()" onblur="onSearchBlur()">
+                    <button id="clear-search" class="clear-btn hidden" onclick="clearSearch()" title="Hapus pencarian">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+                <!-- Search Dropdown -->
+                <div id="search-dropdown" class="search-dropdown hidden">
+                    <div id="search-dropdown-content"></div>
+                </div>
             </div>
         </div>
     </header>
 
+    <!-- Search Results Overlay (full page) -->
+    <div id="search-overlay" class="search-overlay hidden">
+        <div class="search-overlay-header">
+            <span id="search-overlay-title">Hasil Pencarian</span>
+            <button class="search-overlay-close" onclick="clearSearch()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                Tutup
+            </button>
+        </div>
+        <div id="search-results-grid" class="search-results-grid"></div>
+    </div>
+
+    <!-- ===== MAIN CONTENT ===== -->
     <main id="app">
-        <!-- Loading Spinner -->
+        <!-- Loading Splash -->
         <div id="loader" class="loader-container hidden">
-            <div class="spinner"></div>
-            <p>Loading movies...</p>
+            <div class="loader-inner">
+                <div class="loader-logo">RICHIEFLIX</div>
+                <div class="loader-bar-track">
+                    <div class="loader-bar-fill"></div>
+                </div>
+                <p id="loader-text">Mengambil data film terbaru...</p>
+            </div>
         </div>
 
         <!-- Hero Section -->
         <section id="hero" class="hero">
+            <div class="hero-bg" id="hero-bg"></div>
+            <div class="hero-overlay"></div>
             <div class="hero-content">
+                <div class="hero-badge" id="hero-badge">🆕 Film Terbaru</div>
                 <h1 id="hero-title">Movie Title</h1>
-                <p id="hero-desc">Year: 2026</p>
+                <p id="hero-desc">Tahun: 2026</p>
                 <div class="hero-btns">
-                    <button class="play-btn" onclick="playHero()">Play</button>
-                    <button class="info-btn">More Info</button>
+                    <button class="play-btn" onclick="playHero()">
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><polygon points="5,3 19,12 5,21"/></svg>
+                        Putar
+                    </button>
+                    <button class="info-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                        Info
+                    </button>
                 </div>
             </div>
-            <div class="hero-overlay"></div>
         </section>
 
-        <!-- Genre Rows Container -->
+        <!-- Genre Rows -->
         <div id="genres-container"></div>
     </main>
 
-    <!-- Video Player Overlay -->
+    <!-- ===== VIDEO PLAYER ===== -->
     <div id="player-overlay" class="player-overlay hidden">
-        <button class="close-btn" onclick="closePlayer()">&times;</button>
-        <button id="external-player-btn" class="external-btn hidden" onclick="showExternalMenu()">&#9881; Player Options</button>
-        
-        <!-- External Player Menu Popup -->
+        <div class="player-top-bar">
+            <span id="player-title" class="player-title-text"></span>
+            <div class="player-top-actions">
+                <button id="external-player-btn" class="player-action-btn hidden" onclick="showExternalMenu()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+                    Opsi Player
+                </button>
+                <button class="player-close-btn" onclick="closePlayer()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- External Player Menu -->
         <div id="external-menu" class="external-menu hidden">
-            <h3>Audio Issues? (No Sound)</h3>
-            <p>Try opening in an external player that supports surround sound formats (MKV/AC3/DTS).</p>
-            <button onclick="launchExternal('vlc')">Open in VLC Player</button>
-            <button onclick="launchExternal('mx')">Open in MX Player (Android)</button>
-            <button onclick="copyVideoUrl()">Copy Video Link</button>
+            <div class="ext-menu-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#e50914" stroke-width="2" width="24" height="24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <h3>Masalah Audio?</h3>
+            </div>
+            <p>Coba buka di player eksternal yang mendukung format MKV/AC3/DTS.</p>
+            <button class="ext-btn" onclick="launchExternal('vlc')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polygon points="5,3 19,12 5,21"/></svg>
+                Buka di VLC Player
+            </button>
+            <button class="ext-btn" onclick="launchExternal('mx')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                Buka di MX Player (Android)
+            </button>
+            <button class="ext-btn" onclick="copyVideoUrl()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Salin Link Video
+            </button>
             <hr>
-            <button class="secondary-btn" onclick="hideExternalMenu()">Continue in Browser</button>
+            <button class="ext-btn secondary" onclick="hideExternalMenu()">Lanjutkan di Browser</button>
         </div>
 
         <video id="video-player" controls preload="metadata">
             <track id="player-subtitle" label="English" kind="subtitles" srclang="en" default>
-            Your browser does not support the video tag.
+            Browser Anda tidak mendukung video.
         </video>
     </div>
+
+    <!-- Scroll to top button -->
+    <button id="scroll-top-btn" class="scroll-top-btn hidden" onclick="scrollToTop()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
+            <polyline points="18,15 12,9 6,15"/>
+        </svg>
+    </button>
 
     <script src="app.js"></script>
 </body>
