@@ -15,21 +15,43 @@ export async function onRequest(context) {
       .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec)));
   }
 
-  // Helper to fetch metadata from OMDb
+  // Helper to fetch metadata from OMDb (dengan Cache API Cloudflare)
   async function getMetadata(title, year) {
+    const cacheKey = `https://omdb-cache.local/?t=${encodeURIComponent(title)}&y=${year}`;
+    const cache = caches.default;
+    
     try {
+      // 1. Cek cache Cloudflare Workers terlebih dahulu
+      const cachedResponse = await cache.match(cacheKey);
+      if (cachedResponse) {
+        return await cachedResponse.json();
+      }
+
+      // 2. Jika cache miss, fetch ke OMDb API
       const cleanTitle = title.replace(/[^\w\s]/gi, ' ').replace(/\s+/g, ' ').trim();
       const query = year ? `t=${encodeURIComponent(cleanTitle)}&y=${year}` : `t=${encodeURIComponent(cleanTitle)}`;
       const response = await fetch(`https://www.omdbapi.com/?${query}&apikey=${OMDB_API_KEY}`);
       if (!response.ok) return { poster: null, genre: "General" };
       
       const data = await response.json();
+      let meta = { poster: null, genre: "General" };
       if (data && data.Response === "True") {
-        return {
+        meta = {
           poster: data.Poster !== "N/A" ? data.Poster : null,
           genre: data.Genre !== "N/A" ? data.Genre.split(',')[0].trim() : "General"
         };
       }
+
+      // 3. Simpan ke cache Cloudflare Workers (TTL 30 hari)
+      const cacheResponse = new Response(JSON.stringify(meta), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=2592000'
+        }
+      });
+      context.waitUntil(cache.put(cacheKey, cacheResponse));
+      
+      return meta;
     } catch (e) {
       console.error(`OMDb error for ${title}:`, e.message);
     }
@@ -101,11 +123,12 @@ export async function onRequest(context) {
     const recentMovies = allMovieFolders.filter(m => recentYears.includes(m.year));
     const olderMovies = allMovieFolders.filter(m => !recentYears.includes(m.year));
 
-    // Fetch posters for top recent movies (up to 60) + top 20 older movies
-    const topRecent = recentMovies.slice(0, 60);
-    const topOlder = olderMovies.slice(0, 20);
+    // Fetch posters for top recent movies (up to 35) + top 10 older movies
+    // Kita kurangi agar hemat API key, sisanya akan terisi secara bertahap
+    const topRecent = recentMovies.slice(0, 35);
+    const topOlder = olderMovies.slice(0, 10);
     const needsMeta = [...topRecent, ...topOlder];
-    const noMeta = [...recentMovies.slice(60), ...olderMovies.slice(20)];
+    const noMeta = [...recentMovies.slice(35), ...olderMovies.slice(10)];
 
     const withMeta = await Promise.all(needsMeta.map(async (m) => {
         try {
